@@ -61,5 +61,4 @@ jobs:
         with:
           title: "Automated fix for issue #${{ github.event.issue.number }}"
           body: "This PR was created automatically to address issue #${{ github.event.issue.number }}."
-          head: issue-${{ github.event.issue.number }}
           base: main
