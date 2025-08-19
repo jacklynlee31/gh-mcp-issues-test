@@ -13,6 +13,6 @@ jobs:
     steps:
       - name: Assign issue to Copilot
         run: |
-            gh issue edit ${{ github.event.issue.number }} --add-assignee "@copilot"
+            gh issue edit ${{ github.event.issue.number }} --add-assignee "github-copilot[bot]" --repo ${{ github.repository }}
         env:
             GH_TOKEN: ${{ github.token }}
