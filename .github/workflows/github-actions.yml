@@ -1,18 +1,65 @@
-name: GitHub Actions Demo
-run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
-on: [push]
+
+name: Issue Triage and Auto PR
+
+on:
+  issues:
+    types: [opened]
+
 jobs:
-  Explore-GitHub-Actions:
+  assign-copilot:
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
     steps:
-      - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
-      - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
-      - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
-      - name: Check out repository code
+      - name: Assign issue to Copilot
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.issues.addAssignees({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              assignees: ['github-copilot[bot]']
+            })
+
+  label-issue:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Add 'automated' label to new issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['automated']
+            })
+
+  create-pr:
+    needs: label-issue
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout code
         uses: actions/checkout@v4
-      - run: echo "💡 The ${{ github.repository }} repository has been cloned to the runner."
-      - run: echo "🖥️ The workflow is now ready to test your code on the runner."
-      - name: List files in the repository
+      - name: Create branch for issue
         run: |
-          ls ${{ github.workspace }}
-      - run: echo "🍏 This job's status is ${{ job.status }}."
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git checkout -b issue-${{ github.event.issue.number }}
+          echo "// Automated fix for issue #${{ github.event.issue.number }}" > src/pages/issue-${{ github.event.issue.number }}.astro
+          git add src/pages/issue-${{ github.event.issue.number }}.astro
+          git commit -m "Automated fix for issue #${{ github.event.issue.number }}"
+          git push origin issue-${{ github.event.issue.number }}
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          title: "Automated fix for issue #${{ github.event.issue.number }}"
+          body: "This PR was created automatically to address issue #${{ github.event.issue.number }}."
+          head: issue-${{ github.event.issue.number }}
+          base: main
