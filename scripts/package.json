@@ -1,0 +1,12 @@
+{
+  "name": "remove-issue-labels",
+  "version": "1.0.0", 
+  "description": "Script to remove all labels from open issues",
+  "main": "remove-labels.js",
+  "dependencies": {
+    "@octokit/rest": "^20.0.0"
+  },
+  "scripts": {
+    "remove-labels": "node remove-labels.js"
+  }
+}
