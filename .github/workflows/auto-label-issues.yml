@@ -1,0 +1,108 @@
+name: Auto Label Issues
+
+"on":
+  issues:
+    types: [opened, edited, reopened]
+
+jobs:
+  auto-label:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+    
+    steps:
+      - name: Auto Label Issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const title = issue.title.toLowerCase();
+            const body = issue.body ? issue.body.toLowerCase() : '';
+            const content = `${title} ${body}`;
+            
+            const labels = [];
+            
+            // Priority detection based on keywords
+            const highPriorityKeywords = ['urgent', 'critical', 'blocker', 'emergency', 'asap', 'immediately', 'breaking', 'security vulnerability'];
+            const mediumPriorityKeywords = ['important', 'should', 'improvement'];
+            const lowPriorityKeywords = ['nice to have', 'nice-to-have', 'eventually', 'future', 'minor', 'cosmetic', 'small'];
+            
+            // Category detection - more specific keywords to avoid false positives
+            const bugKeywords = ['bug', 'error', 'broken', 'not working', 'crash', 'fail', 'exception', 'unexpected', 'defect', 'vulnerability'];
+            const featureKeywords = ['feature request', 'new feature', 'add feature', 'functionality'];
+            const documentationKeywords = ['documentation', 'docs', 'readme', 'guide', 'tutorial', 'instructions'];
+            const questionKeywords = ['question', 'how to', 'how do', 'clarification', 'explain'];
+            const maintenanceKeywords = ['refactor', 'cleanup', 'maintenance', 'technical debt', 'code quality'];
+            
+            // Check for priority labels (order matters - check more specific first)
+            if (highPriorityKeywords.some(keyword => content.includes(keyword))) {
+              labels.push('high');
+            } else if (lowPriorityKeywords.some(keyword => content.includes(keyword))) {
+              labels.push('low');
+            } else if (mediumPriorityKeywords.some(keyword => content.includes(keyword))) {
+              labels.push('medium');
+            } else {
+              // Default to medium if no priority keywords found
+              labels.push('medium');
+            }
+            
+            // Check for category labels
+            if (bugKeywords.some(keyword => content.includes(keyword))) {
+              labels.push('bug');
+            }
+            
+            if (featureKeywords.some(keyword => content.includes(keyword)) || 
+                (content.includes('add') && (content.includes('feature') || content.includes('new'))) ||
+                (content.includes('enhance') && !content.includes('bug') && !content.includes('vulnerability') && !content.includes('security')) ||
+                (content.includes('implement') && !questionKeywords.some(keyword => content.includes(keyword)))) {
+              labels.push('enhancement');
+            }
+            
+            if (documentationKeywords.some(keyword => content.includes(keyword))) {
+              labels.push('documentation');
+            }
+            
+            if (questionKeywords.some(keyword => content.includes(keyword))) {
+              labels.push('question');
+            }
+            
+            if (maintenanceKeywords.some(keyword => content.includes(keyword))) {
+              labels.push('maintenance');
+            }
+            
+            // Additional specific labels
+            if (content.includes('frontend') || content.includes('ui') || content.includes('css') || content.includes('html')) {
+              labels.push('frontend');
+            }
+            
+            if (content.includes('backend') || content.includes('server') || content.includes('api') || content.includes('database')) {
+              labels.push('backend');
+            }
+            
+            if (content.includes('security') || content.includes('vulnerability') || content.includes('auth')) {
+              labels.push('security');
+            }
+            
+            if (content.includes('test') || content.includes('testing') || content.includes('spec')) {
+              labels.push('testing');
+            }
+            
+            if (content.includes('ci') || content.includes('cd') || content.includes('github actions') || content.includes('workflow')) {
+              labels.push('ci/cd');
+            }
+            
+            // Remove duplicates and add labels
+            const uniqueLabels = [...new Set(labels)];
+            
+            if (uniqueLabels.length > 0) {
+              console.log(`Adding labels: ${uniqueLabels.join(', ')}`);
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: uniqueLabels
+              });
+            } else {
+              console.log('No labels to add');
+            }
